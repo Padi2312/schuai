@@ -315,29 +315,30 @@ class TextToSpeech:
         logging.info("[TTSOPENAI] Start generating speech")
         start_time = time.time()
 
-        # Split text into chunks of 500 characters without splitting words
-        words = text.split()
+        # Split text into sentences
+        sentence_pattern = r"(?<=[.!?]) +"
+        sentences = re.split(sentence_pattern, text)
+
+        # Prepare chunks and ensure they are in order, without exceeding 500 characters
         chunks = []
         current_chunk = ""
 
-        for word in words:
-            if len(current_chunk) + len(word) + 1 <= 500:
-                current_chunk += " " + word if current_chunk else word
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if len(current_chunk) + len(sentence) + 1 <= 500:
+                current_chunk += (" " + sentence if current_chunk else sentence)
             else:
-                chunks.append(current_chunk)
-                current_chunk = word
+                if current_chunk:
+                    chunks.append(current_chunk)
+                current_chunk = sentence
 
         if current_chunk:
             chunks.append(current_chunk)
 
         # Generate audio for each chunk and store the temporary file paths
         with ThreadPoolExecutor() as executor:
-            futures = {
-                executor.submit(
-                    self.generate_audio_chunk, url, headers, payload.copy(), chunk, i
-                ): i
-                for i, chunk in enumerate(chunks)
-            }
+            futures = {executor.submit(self.generate_audio_chunk, url, headers, payload.copy(), chunk, i): i
+                       for i, chunk in enumerate(chunks)}
 
             for future in as_completed(futures):
                 index = futures[future]
@@ -364,6 +365,7 @@ class TextToSpeech:
         end_time = time.time()
         logging.info(f"[TTSOPENAI] Finished! Time taken: {end_time - start_time:.2f}s")
         return speech_file_path
+
 
 
 class AudioPlayer:
