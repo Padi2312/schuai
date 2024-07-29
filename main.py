@@ -1,5 +1,7 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 import os
+import re
 import time
 import wave
 from pathlib import Path
@@ -273,8 +275,23 @@ class TextToSpeech:
             logging.error(f"{response.status_code} - {response.text}")
             return None
 
+    def generate_audio_chunk(self, url, headers, payload, chunk, index):
+        payload["input"] = chunk
+        response = requests.post(url, headers=headers, json=payload)
+
+        if response.status_code == 200:
+            temp_file_path = Path(__file__).parent / f"temp_speech_{index}.mp3"
+            with open(temp_file_path, "wb") as audio_file:
+                audio_file.write(response.content)
+            return temp_file_path
+        else:
+            logging.error(f"{response.status_code} - {response.text}")
+            return None
+
     def generate_speech_ttsopenai(self, text):
         speech_file_path = Path(__file__).parent / "speech.mp3"
+        temp_audio_files = []  # To hold paths of temporary audio files
+
         url = "https://api.ttsopenai.com/api/v1/public/text-to-speech-stream"
         headers = {
             "accept": "application/json",
@@ -293,27 +310,60 @@ class TextToSpeech:
             "sec-gpc": "1",
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
         }
-        payload = {"model": "tts-1", "speed": 1, "input": text, "voice_id": "OA005"}
-        logging.info(f"[TTSOPENAI] Start generating speech")
+        payload = {"model": "tts-1", "speed": 1, "voice_id": "OA005"}
+
+        logging.info("[TTSOPENAI] Start generating speech")
         start_time = time.time()
-        response = requests.post(
-            url,
-            headers=headers,
-            json=payload,
-        )
-        if response.status_code == 200:
-            with open(speech_file_path, "wb") as audio_file:
-                for chunk in response.iter_content(chunk_size=1024):
-                    if chunk:
-                        audio_file.write(chunk)
-            end_time = time.time()
-            logging.info(
-                f"[TTSOPENAI] Finished! Time taken: {end_time - start_time:.2f}s"
-            )
-            return speech_file_path
-        else:
-            logging.error(f"{response.status_code} - {response.text}")
-            return None
+
+        # Split text into chunks of 500 characters without splitting words
+        words = text.split()
+        chunks = []
+        current_chunk = ""
+
+        for word in words:
+            if len(current_chunk) + len(word) + 1 <= 500:
+                current_chunk += " " + word if current_chunk else word
+            else:
+                chunks.append(current_chunk)
+                current_chunk = word
+
+        if current_chunk:
+            chunks.append(current_chunk)
+
+        # Generate audio for each chunk and store the temporary file paths
+        with ThreadPoolExecutor() as executor:
+            futures = {
+                executor.submit(
+                    self.generate_audio_chunk, url, headers, payload.copy(), chunk, i
+                ): i
+                for i, chunk in enumerate(chunks)
+            }
+
+            for future in as_completed(futures):
+                index = futures[future]
+                temp_audio_file = future.result()
+                if temp_audio_file:
+                    while len(temp_audio_files) <= index:
+                        temp_audio_files.append(None)
+                    temp_audio_files[index] = temp_audio_file
+
+        # Combine all audio files in the order they were processed
+        combined = AudioSegment.empty()
+        for audio_file in temp_audio_files:
+            if audio_file:
+                combined += AudioSegment.from_file(audio_file)
+
+        # Export the combined audio file
+        combined.export(speech_file_path, format="mp3")
+
+        # Clean up temporary files
+        for audio_file in temp_audio_files:
+            if audio_file and Path(audio_file).exists():
+                Path(audio_file).unlink()
+
+        end_time = time.time()
+        logging.info(f"[TTSOPENAI] Finished! Time taken: {end_time - start_time:.2f}s")
+        return speech_file_path
 
 
 class AudioPlayer:
