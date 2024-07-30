@@ -1,9 +1,10 @@
-import logging
 from typing import TypedDict
 
 import requests
 from duckduckgo_search import DDGS
 from goose3 import Goose
+
+from core.logger import log
 
 
 class WeatherCoordinatesParams(TypedDict):
@@ -29,9 +30,8 @@ class Tools:
         key: str
         function: callable
 
-    def __init__(self, addtional_tools: AdditionalTools = {}) -> None:
-        self.additional_tools = addtional_tools
-        pass
+    def __init__(self, additional_tools: AdditionalTools = {}) -> None:
+        self.additional_tools = additional_tools
 
     def available_tools(self) -> dict:
         return {
@@ -101,6 +101,9 @@ class Tools:
         self.ddgs = DDGS()
         self.goose = Goose()
 
+        log.debug(
+            f"Starting web search with params: {params}, max_results: {max_results}"
+        )
         results = self.ddgs.text(
             params["keywords"],
             max_results=max_results,
@@ -110,12 +113,14 @@ class Tools:
 
         for result in results:
             try:
-                # Scrape the content using Goose
+                log.debug(f"Checking URL: {result['href']}")
                 response = requests.head(result["href"])
                 if response.status_code != 200:
+                    log.warning(
+                        f"Skipping {result['href']} - Received status code: {response.status_code}"
+                    )
                     continue
 
-                # Scrape the content using Goose
                 article = self.goose.extract(url=result["href"])
                 scraped_content.append(
                     {
@@ -124,8 +129,9 @@ class Tools:
                         "content": article.cleaned_text,
                     }
                 )
+                log.info(f"Successfully scraped content from: {result['href']}")
             except Exception as e:
-                print(f"Error scraping {result['href']}: {e}")
+                log.error(f"Error scraping {result['href']}: {e}")
 
         return scraped_content
 
@@ -135,13 +141,19 @@ class Tools:
         if "latitude" in params and "longitude" in params:
             lat = params["latitude"]
             lon = params["longitude"]
+            log.info(f"Using provided coordinates: lat={lat}, lon={lon}")
         else:
             location = params["location"]
+            log.info(f"Getting coordinates for location: {location}")
             coordinates = self._get_coordinates({"location": location})
             if "error" in coordinates:
+                log.error(
+                    f"Failed to get coordinates for {location}: {coordinates['error']}"
+                )
                 return coordinates
             lat = coordinates["latitude"]
             lon = coordinates["longitude"]
+            log.info(f"Coordinates for {location}: lat={lat}, lon={lon}")
 
         base_url = "https://api.open-meteo.com/v1/dwd-icon"
         hourly_vars = [
@@ -155,20 +167,26 @@ class Tools:
             "timezone": "auto",  # Automatically determine timezone based on location
             "forecast_days": 1,  # Get the forecast for the next day
         }
-        logging.info(f"Sending request to {base_url} with params {params}")
+        log.info(f"Sending request to {base_url} with params {params}")
         response = requests.get(base_url, params=params)
         if response.status_code == 200:
-            logging.info(f"{response.status_code} - {response.text}")
+            log.info(f"Received successful response: {response.status_code}")
             data = response.json()
-            del data["latitude"]
-            del data["longitude"]
-            del data["generationtime_ms"]
-            del data["utc_offset_seconds"]
-            del data["timezone"]
-            del data["timezone_abbreviation"]
+            # Clean up the response data
+            for key in [
+                "latitude",
+                "longitude",
+                "generationtime_ms",
+                "utc_offset_seconds",
+                "timezone",
+                "timezone_abbreviation",
+            ]:
+                data.pop(key, None)
             return data
         else:
-            logging.error(f"{response.status_code} - {response.text}")
+            log.error(
+                f"Failed to get weather data: {response.status_code} - {response.text}"
+            )
             return {"error": "Error getting weather data"}
 
     def _get_coordinates(self, params: CoordinatesParams):
@@ -204,19 +222,24 @@ class Tools:
                 "referer": "https://www.google.com",
             }
 
-            logging.info(f"Sending request to {url} with params {_params}")
+            log.info(f"Sending request to {url} with params {_params}")
             response = requests.get(
                 url, params=_params, allow_redirects=True, headers=headers
             )
             if response.status_code != 200:
-                logging.error(f"{response.status_code} - {response.text}")
+                log.error(
+                    f"Failed to get coordinates: {response.status_code} - {response.text}"
+                )
                 raise Exception("Error getting coordinates")
 
-            logging.info(f"{response.status_code} - {response.text}")
+            log.info(
+                f"Received successful response for coordinates: {response.status_code}"
+            )
             first = response.json()[0]
             return {
                 "latitude": float(first["lat"]),
                 "longitude": float(first["lon"]),
             }
         except Exception as e:
+            log.error(f"Error getting coordinates: {e}")
             return {"error": "Error getting coordinates"}

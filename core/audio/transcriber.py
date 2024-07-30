@@ -1,7 +1,8 @@
-import logging
 import os
 
 from groq import Groq
+
+from core.logger import log
 
 
 class Transcriber:
@@ -10,6 +11,7 @@ class Transcriber:
 
     def transcribe_file(self, filename):
         """Transcribe audio using OpenAI's Whisper model."""
+        log.debug(f"Transcribing file: {filename}")
         with open(filename, "rb") as file:
             transcription = self.speech_to_text_client.audio.transcriptions.create(
                 file=(filename, file.read()),
@@ -18,5 +20,5 @@ class Transcriber:
                 response_format="json",
             )
         os.remove(filename)
-        logging.info(f"Transcription: {transcription.text}")
+        log.info(f"Transcription: {transcription.text}")
         return transcription.text

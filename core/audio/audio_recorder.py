@@ -1,4 +1,3 @@
-import logging
 import os
 import time
 import wave
@@ -7,6 +6,8 @@ import numpy as np
 import pyaudio
 import simpleaudio as sa
 from pydub.generators import Sine
+
+from core.logger import log
 
 
 class AudioRecorder:
@@ -68,7 +69,7 @@ class AudioRecorder:
 
     def record_audio(self):
         """Record audio from the microphone and save it to a file."""
-        logging.info("Recording...")
+        log.info("Recording...")
         self.play_beep(100, 800)
         frames = []
         silence_start = None
@@ -87,7 +88,7 @@ class AudioRecorder:
             else:
                 silence_start = None
 
-        logging.info("Finished recording")
+        log.info("Finished recording")
         self.play_beep(100, 250)
 
         OUTPUT_FILENAME_TEMPLATE = os.path.join(
@@ -99,7 +100,7 @@ class AudioRecorder:
             wf.setsampwidth(self.audio.get_sample_size(self.FORMAT))
             wf.setframerate(self.RATE)
             wf.writeframes(b"".join(frames))
-        logging.info(f"Audio saved as {output_filename}")
+        log.info(f"Audio saved as {output_filename}")
 
         self.file_index += 1
         return output_filename

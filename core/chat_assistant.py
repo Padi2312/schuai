@@ -1,26 +1,22 @@
 import datetime
 import json
-import logging
-import os
 from typing import List
 
-from groq import Groq
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageToolCall
 
+from core.logger import log
 from core.tools import Tools
-from core.web_scraper import WebSearch
 
 
-class SpeechProcessor:
+class ChatAssistant:
     def __init__(self):
         self.client = OpenAI()
         self.tools = Tools(
-            addtional_tools={
+            additional_tools={
                 "clear_conversation_history": self.clear_conversation_history,
             }
         )
-        self.web_scraper = WebSearch()
         self.conversation_history = []
 
     def get_system_prompt(self):
@@ -72,7 +68,7 @@ class SpeechProcessor:
             self.conversation_history.append(
                 {"role": "assistant", "content": response_message.content}
             )
-            logging.info("Response: %s", response_message.content)
+            log.info("Response: %s", response_message.content)
             return response_message.content
 
     def handle_function_calls(
@@ -80,18 +76,18 @@ class SpeechProcessor:
     ):
         """Handle tool calls from OpenAI response."""
         available_functions = self.tools.available_tools()
-        logging.info(f"Found {len(tool_calls)} tool calls.")
+        log.info(f"Found {len(tool_calls)} tool calls.")
 
         for tool_call in tool_calls:
             function_name = tool_call.function.name
             function_to_call = available_functions.get(function_name)
             function_parameters = json.loads(tool_call.function.arguments)
             if function_to_call is None:
-                logging.warning(f"Function '{function_name}' not found.")
+                log.warning(f"Function '{function_name}' not found.")
                 return "Function not found."
 
             if function_name == "clear_conversation_history":
-                logging.info(f"Conversation history cleared.")
+                log.info(f"Conversation history cleared.")
                 old_history = self.conversation_history.copy()
                 function_to_call()
                 old_history.append(
@@ -109,7 +105,7 @@ class SpeechProcessor:
                 )
                 return second_response.choices[0].message.content
             else:
-                logging.info(
+                log.info(
                     f"Executing function '{function_name}' with parameters: {function_parameters}"
                 )
                 result = function_to_call(function_parameters)
@@ -131,5 +127,5 @@ class SpeechProcessor:
     def clear_conversation_history(self):
         """Clear the conversation history."""
         self.conversation_history.clear()
-        logging.info("Conversation history cleared.")
+        log.info("Conversation history cleared.")
         return True

@@ -1,4 +1,3 @@
-import logging
 import os
 import re
 import time
@@ -10,25 +9,31 @@ from elevenlabs import save
 from elevenlabs.client import ElevenLabs
 from pydub import AudioSegment
 
+from core.logger import log
+
 
 class TextToSpeech:
     def __init__(self, output_folder="recordings"):
         self.ELVEN_LABS_VOICE_ID = "cgSgspJ2msm6clMCkdW9"
         self.client = ElevenLabs()
         self.output_folder = output_folder
+        os.makedirs(self.output_folder, exist_ok=True)  # Ensure output folder exists
+        log.info(f"Initialized TextToSpeech with output folder: {self.output_folder}")
 
     def generate_speech(self, text):
         """Generate speech from text using ElevenLabs."""
         speech_file_path = os.path.join(self.output_folder, "speech.mp3")
+        log.info("Generating speech using ElevenLabs.")
         response = self.client.generate(
             text=text, voice=self.ELVEN_LABS_VOICE_ID, model="eleven_turbo_v2_5"
         )
         save(response, speech_file_path)
+        log.info(f"Speech generated and saved to {speech_file_path}")
         return speech_file_path
 
     def generate_speech_coqui(self, text):
         """Generate speech from text using Coqui TTS."""
-        speech_file_path = Path(__file__).parent / "speech.mp3"
+        speech_file_path = Path(self.output_folder) / "speech_coqui.mp3"
         url = "https://tts.nc6.conexo.support/api/v1/audio/speech/"
         token = os.getenv("COQUI_TOKEN")
         headers = {
@@ -40,26 +45,28 @@ class TextToSpeech:
             "language": "de",
             "speaker": "german_female_anke.wav",
         }
-        logging.info(f"Start generating speech for")
-        response = requests.post(
-            url,
-            headers=headers,
-            json=payload,
-        )
-        logging.info(f"Finished generating speech")
+
+        log.info("Start generating speech using Coqui TTS")
+        response = requests.post(url, headers=headers, json=payload)
+
         if response.status_code == 200:
             audio_data = response.content
-
             with open(speech_file_path, "wb") as file:
                 file.write(audio_data)
-
+            log.info(f"Coqui TTS speech generated and saved to {speech_file_path}")
             return speech_file_path
         else:
-            logging.error(f"{response.status_code} - {response.text}")
+            log.error(
+                f"Coqui TTS failed with status {response.status_code} - {response.text}"
+            )
             return None
 
     def generate_audio_chunk(self, url, headers, payload, chunk, index):
+        """Generate a single audio chunk."""
         payload["input"] = chunk
+        log.debug(
+            f"Generating audio chunk {index}: {chunk[:30]}..."
+        )  # Log only the first 30 chars
         response = requests.post(url, headers=headers, json=payload)
 
         if response.status_code == 200:
@@ -68,15 +75,18 @@ class TextToSpeech:
             )
             with open(temp_file_path, "wb") as audio_file:
                 audio_file.write(response.content)
+            log.debug(f"Chunk {index} generated and saved to {temp_file_path}")
             return temp_file_path
         else:
-            logging.error(f"{response.status_code} - {response.text}")
+            log.error(
+                f"Chunk {index} generation failed with status {response.status_code} - {response.text}"
+            )
             return None
 
     def generate_speech_ttsopenai(self, text):
-        speech_file_path = os.path.join(self.output_folder, "speech.mp3")
+        """Generate speech from text using TTS OpenAI."""
+        speech_file_path = os.path.join(self.output_folder, "speech_openai.mp3")
         temp_audio_files = []  # To hold paths of temporary audio files
-
         url = "https://api.ttsopenai.com/api/v1/public/text-to-speech-stream"
         headers = {
             "accept": "application/json",
@@ -97,7 +107,7 @@ class TextToSpeech:
         }
         payload = {"model": "tts-1", "speed": 1, "voice_id": "OA005"}
 
-        logging.info("[TTSOPENAI] Start generating speech")
+        log.info("Start generating speech")
         start_time = time.time()
 
         # Split text into sentences
@@ -150,7 +160,8 @@ class TextToSpeech:
         for audio_file in temp_audio_files:
             if audio_file and Path(audio_file).exists():
                 Path(audio_file).unlink()
+                log.debug(f"Temporary file {audio_file} deleted.")
 
         end_time = time.time()
-        logging.info(f"[TTSOPENAI] Finished! Time taken: {end_time - start_time:.2f}s")
+        log.info(f"Finished generating speech in {end_time - start_time:.2f}s and saved to {speech_file_path}")
         return speech_file_path

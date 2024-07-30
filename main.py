@@ -1,16 +1,14 @@
-import logging
 import os
 
 import numpy as np
-import pyaudio
-from dotenv import load_dotenv
 from openwakeword import utils
 from openwakeword.model import Model
 
 from core.audio.audio_player import AudioPlayer
 from core.audio.audio_recorder import AudioRecorder
 from core.audio.transcriber import Transcriber
-from core.speech_processor import SpeechProcessor
+from core.logger import log
+from core.chat_assistant import ChatAssistant
 from core.text_to_speech import TextToSpeech
 
 # Constants
@@ -29,7 +27,7 @@ class ConversationalAssistant:
         self.player = AudioPlayer()
         self.transcriber = Transcriber()
 
-        self.processor = SpeechProcessor()
+        self.processor = ChatAssistant()
         self.speech_generator = TextToSpeech()
 
     def conversational_mode(self):
@@ -60,10 +58,6 @@ class ConversationalAssistant:
 
 
 if __name__ == "__main__":
-    logging.info("\n\n")
-    logging.info("#" * 100)
-    logging.info("Listening for wakewords...")
-    logging.info("#" * 100)
-
+    log.info("Starting Conversational Assistant")
     assistant = ConversationalAssistant()
     assistant.conversational_mode()
