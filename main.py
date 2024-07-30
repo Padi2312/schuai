@@ -12,15 +12,6 @@ from core.audio_recorder import AudioRecorder
 from core.speech_processor import SpeechProcessor
 from core.text_to_speech import TextToSpeech
 
-load_dotenv()  # Load environment variables from .env
-
-# Configure logging
-logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
-    handlers=[logging.StreamHandler()],
-)
-
 # Constants
 MODEL_PATH = "alexa"
 INFERENCE_FRAMEWORK = "onnx"
