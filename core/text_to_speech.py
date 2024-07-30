@@ -12,13 +12,14 @@ from pydub import AudioSegment
 
 
 class TextToSpeech:
-    def __init__(self):
+    def __init__(self, output_folder="recordings"):
         self.ELVEN_LABS_VOICE_ID = "cgSgspJ2msm6clMCkdW9"
         self.client = ElevenLabs()
+        self.output_folder = output_folder
 
     def generate_speech(self, text):
         """Generate speech from text using ElevenLabs."""
-        speech_file_path = Path(__file__).parent / "speech.mp3"
+        speech_file_path = os.path.join(self.output_folder, "speech.mp3")
         response = self.client.generate(
             text=text, voice=self.ELVEN_LABS_VOICE_ID, model="eleven_turbo_v2_5"
         )
@@ -62,7 +63,9 @@ class TextToSpeech:
         response = requests.post(url, headers=headers, json=payload)
 
         if response.status_code == 200:
-            temp_file_path = Path(__file__).parent / f"temp_speech_{index}.mp3"
+            temp_file_path = os.path.join(
+                self.output_folder, f"temp_speech_{index}.mp3"
+            )
             with open(temp_file_path, "wb") as audio_file:
                 audio_file.write(response.content)
             return temp_file_path
@@ -71,7 +74,7 @@ class TextToSpeech:
             return None
 
     def generate_speech_ttsopenai(self, text):
-        speech_file_path = Path(__file__).parent / "speech.mp3"
+        speech_file_path = os.path.join(self.output_folder, "speech.mp3")
         temp_audio_files = []  # To hold paths of temporary audio files
 
         url = "https://api.ttsopenai.com/api/v1/public/text-to-speech-stream"

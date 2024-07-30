@@ -8,13 +8,18 @@ from groq import Groq
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageToolCall
 
+from core.tools import Tools
 from core.web_scraper import WebSearch
 
 
 class SpeechProcessor:
     def __init__(self):
         self.client = OpenAI()
-        self.speech_to_text_client = Groq()
+        self.tools = Tools(
+            addtional_tools={
+                "clear_conversation_history": self.clear_conversation_history,
+            }
+        )
         self.web_scraper = WebSearch()
         self.conversation_history = []
 
@@ -42,58 +47,14 @@ class SpeechProcessor:
             + f"\nCurrent date and time: {current_date}"
         )
 
-    def transcribe_audio(self, filename):
-        """Transcribe audio using OpenAI's Whisper model."""
-        with open(filename, "rb") as file:
-            transcription = self.speech_to_text_client.audio.transcriptions.create(
-                file=(filename, file.read()),
-                model="whisper-large-v3",
-                prompt="Specify context or spelling",
-                response_format="json",
-            )
-        os.remove(filename)
-        logging.info(f"Transcription: {transcription.text}")
-        return transcription.text
-
     def process_text_with_openai(self, text):
         """Process text with OpenAI's chat model, maintaining conversation history."""
         self.conversation_history.append({"role": "user", "content": text})
-
-        tools = [
-            {
-                "type": "function",
-                "function": {
-                    "name": "clear_conversation_history",
-                    "description": "Clear the entire conversation history.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {},
-                    },
-                },
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "websearch",
-                    "description": "Search the internet for the given keywords.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "keywords": {
-                                "type": "string",
-                                "description": "The keywords or text to search for.",
-                            }
-                        },
-                    },
-                },
-            },
-        ]
-
         response = self.client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "system", "content": self.get_system_prompt()}]
             + self.conversation_history,
-            tools=tools,
+            tools=self.tools.get_tools_json(),
             temperature=0.7,
             tool_choice="auto",
         )
@@ -118,16 +79,16 @@ class SpeechProcessor:
         self, tool_calls: List[ChatCompletionMessageToolCall], response_message
     ):
         """Handle tool calls from OpenAI response."""
-        available_functions = {
-            "clear_conversation_history": self.clear_conversation_history,
-            "websearch": self.web_scraper.websearch,
-        }
+        available_functions = self.tools.available_tools()
         logging.info(f"Found {len(tool_calls)} tool calls.")
 
         for tool_call in tool_calls:
             function_name = tool_call.function.name
             function_to_call = available_functions.get(function_name)
             function_parameters = json.loads(tool_call.function.arguments)
+            if function_to_call is None:
+                logging.warning(f"Function '{function_name}' not found.")
+                return "Function not found."
 
             if function_name == "clear_conversation_history":
                 logging.info(f"Conversation history cleared.")
@@ -147,9 +108,11 @@ class SpeechProcessor:
                     + old_history,
                 )
                 return second_response.choices[0].message.content
-            elif function_name == "websearch":
-                logging.info(f"Searching the web for '{function_parameters}'...")
-                result = function_to_call(function_parameters["keywords"])
+            else:
+                logging.info(
+                    f"Executing function '{function_name}' with parameters: {function_parameters}"
+                )
+                result = function_to_call(function_parameters)
                 self.conversation_history.append(
                     {
                         "role": "tool",
@@ -164,9 +127,6 @@ class SpeechProcessor:
                     + self.conversation_history,
                 )
                 return second_response.choices[0].message.content
-            else:
-                logging.warning(f"Function '{function_name}' not found.")
-                return "Function not found."
 
     def clear_conversation_history(self):
         """Clear the conversation history."""

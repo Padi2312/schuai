@@ -1,0 +1,22 @@
+import logging
+import os
+
+from groq import Groq
+
+
+class Transcriber:
+    def __init__(self):
+        self.speech_to_text_client = Groq()
+
+    def transcribe_file(self, filename):
+        """Transcribe audio using OpenAI's Whisper model."""
+        with open(filename, "rb") as file:
+            transcription = self.speech_to_text_client.audio.transcriptions.create(
+                file=(filename, file.read()),
+                model="whisper-large-v3",
+                prompt="Specify context or spelling",
+                response_format="json",
+            )
+        os.remove(filename)
+        logging.info(f"Transcription: {transcription.text}")
+        return transcription.text

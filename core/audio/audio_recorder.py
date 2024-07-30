@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 import wave
 
@@ -18,6 +19,7 @@ class AudioRecorder:
         SILENCE_THRESHOLD=1700,
         SILENCE_DURATION=1,
         GAIN_FACTOR=1.5,
+        output_folder="recordings",
     ):
         self.RATE = RATE
         self.CHUNK = CHUNK
@@ -36,6 +38,10 @@ class AudioRecorder:
             frames_per_buffer=self.CHUNK,
         )
         self.file_index = 0
+
+        self.output_folder = output_folder
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
 
     def play_beep(self, duration_ms=100, frequency=500):
         """Play a beep sound using simpleaudio."""
@@ -84,7 +90,9 @@ class AudioRecorder:
         logging.info("Finished recording")
         self.play_beep(100, 250)
 
-        OUTPUT_FILENAME_TEMPLATE = "recorded_audio_{index}.wav"
+        OUTPUT_FILENAME_TEMPLATE = os.path.join(
+            self.output_folder, f"recorded_audio_{self.file_index}.wav"
+        )
         output_filename = OUTPUT_FILENAME_TEMPLATE.format(index=self.file_index)
         with wave.open(output_filename, "wb") as wf:
             wf.setnchannels(self.CHANNELS)

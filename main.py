@@ -7,8 +7,9 @@ from dotenv import load_dotenv
 from openwakeword import utils
 from openwakeword.model import Model
 
-from core.audio_player import AudioPlayer
-from core.audio_recorder import AudioRecorder
+from core.audio.audio_player import AudioPlayer
+from core.audio.audio_recorder import AudioRecorder
+from core.audio.transcriber import Transcriber
 from core.speech_processor import SpeechProcessor
 from core.text_to_speech import TextToSpeech
 
@@ -26,6 +27,7 @@ class ConversationalAssistant:
     def __init__(self):
         self.recorder = AudioRecorder()
         self.player = AudioPlayer()
+        self.transcriber = Transcriber()
 
         self.processor = SpeechProcessor()
         self.speech_generator = TextToSpeech()
@@ -41,7 +43,7 @@ class ConversationalAssistant:
             if any(max(score) > 0.5 for score in owwModel.prediction_buffer.values()):
                 output_filename = self.recorder.record_audio()
                 owwModel.reset()
-                transcription_text = self.processor.transcribe_audio(output_filename)
+                transcription_text = self.transcriber.transcribe_file(output_filename)
                 response_text = self.processor.process_text_with_openai(
                     transcription_text
                 )
