@@ -95,3 +95,7 @@ class AudioRecorder:
 
         self.file_index += 1
         return output_filename
+
+    def read_chunk(self):
+        """Read a chunk of audio data from the microphone."""
+        return self.mic_stream.read(self.CHUNK)

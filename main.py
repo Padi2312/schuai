@@ -23,16 +23,7 @@ logging.basicConfig(
 
 # Constants
 MODEL_PATH = "alexa"
-ELVEN_LABS_VOICE_ID = "cgSgspJ2msm6clMCkdW9"
 INFERENCE_FRAMEWORK = "onnx"
-SILENCE_THRESHOLD = 1500
-SILENCE_DURATION = 1
-OUTPUT_FILENAME_TEMPLATE = "recorded_audio_{index}.wav"
-FORMAT = pyaudio.paInt16
-CHANNELS = 1
-RATE = 16000
-CHUNK = 4096
-GAIN_FACTOR = 1.5  # Factor to amplify the audio
 
 # One-time download of all pre-trained models
 utils.download_models()
@@ -52,9 +43,7 @@ class ConversationalAssistant:
         self.recorder.play_beep(100, 300)
         """Handle conversational interactions with advanced features."""
         while True:
-            audio_data = np.frombuffer(
-                self.recorder.mic_stream.read(CHUNK), dtype=np.int16
-            )
+            audio_data = np.frombuffer(self.recorder.read_chunk(), dtype=np.int16)
             prediction = owwModel.predict(audio_data)
 
             # Check if any score exceeds 0.5
