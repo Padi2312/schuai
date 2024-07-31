@@ -1,4 +1,5 @@
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 
 
@@ -51,6 +52,17 @@ def create_logger(name):
 
     # Add the console handler to the logger
     logger.addHandler(console_handler)
+
+    os.makedirs("logs", exist_ok=True)
+    log_handler = RotatingFileHandler(
+        "logs/app.log", mode="a", maxBytes=1024*512, backupCount=1, encoding="utf-8"
+    )
+    log_handler.setLevel(logging.DEBUG)
+    log_handler.setFormatter(
+        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    )  # Use the same formatter
+    # Add the file handler to the logger
+    logger.addHandler(log_handler)
 
     return logger
 

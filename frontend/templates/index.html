@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+
+{% include "components/head.html" %}
+
+<body class="flex flex-col flex-1">
+    <nav class="bg-gray-800 flex items-center w-full space-x-4 text-white p-4 h-16">
+        <h1 class="text-2xl me-4">Schuai</h1>
+    </nav>
+    <main class="md:px-10 px-2 py-2 flex-1 overflow-hidden">
+        <h2 class="mb-8 text-2xl font-bold text-center">Dashboard</h2>
+        <div class="flex justify-center mt-8 text-center">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+                <a href="/logs"
+                    class="bg-blue-300 rounded-lg shadow-lg p-6 transition transform hover:scale-105 hover:shadow-xl">
+                    <h2 class="text-4xl font-bold">Logs</h2>
+                </a>
+                <a href="/settings"
+                    class="bg-gray-300 rounded-lg shadow-lg p-6 transition transform hover:scale-105 hover:shadow-xl">
+                    <h2 class="text-4xl font-bold">Settings</h2>
+                </a>
+                <a href="/history"
+                    class="bg-green-300 rounded-lg shadow-lg p-6 transition transform hover:scale-105 hover:shadow-xl">
+                    <h2 class="text-4xl font-bold">History</h2>
+                </a>
+            </div>
+        </div>
+    </main>
+</body>
+
+</html>

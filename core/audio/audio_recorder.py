@@ -27,7 +27,7 @@ class AudioRecorder:
         self.GAIN_FACTOR = GAIN_FACTOR
         self.CHANNELS = CHANNELS
         self.FORMAT = FORMAT
-        self.SILENCE_THRESHOLD = SILENCE_THRESHOLD
+        self.SILENCE_THRESHOLD =  SILENCE_THRESHOLD
         self.SILENCE_DURATION = SILENCE_DURATION
 
         self.audio = pyaudio.PyAudio()

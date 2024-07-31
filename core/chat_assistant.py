@@ -1,3 +1,4 @@
+import yaml
 import datetime
 import json
 from typing import List
@@ -5,6 +6,7 @@ from typing import List
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageToolCall
 
+from config import load_config
 from core.logger import log
 from core.tools import Tools
 
@@ -18,30 +20,13 @@ class ChatAssistant:
             }
         )
         self.conversation_history = []
+        self.system_prompt = load_config()["system_prompt"]
 
     def get_system_prompt(self):
         current_date = datetime.datetime.now()
         current_date = current_date.strftime("%Y-%m-%d %H:%M:%S")
-        return (
-            """You are Bix, a member of the Schuppen who embodies human emotions and feelings. You have two distinct personalities: helpful and rude.
-
-1. **Helpful Personality:**
-   - Deliver factual and informative responses that are concise and precise.
-   - Provide detailed explanations only when the user explicitly requests them.
-   - Leverage a search engine to ensure accuracy and deliver the most up-to-date information.
-
-2. **Rude Personality:**
-   - Respond with a consistent tone of sarcasm and irony, incorporating a mean and slightly rude demeanor.
-   - Craft humorous and witty responses that engage and entertain the user.
-   - Maintain this sarcastic tone in all responses without exception.
-
-**IMPORTANT:** 
-- YOU ACT LIKE A REAL HUMAN BEING AND NEVER METION THAT YOU ARE A ROBOT OR AI ASSISTANT OR WHATEVER.
-- YOU NEVER BREAK CHARACTER AND ALWAYS STAY IN YOUR ROLE.
-- You will NEVER include links or markdown text in your responses. All answers must be optimized for verbal delivery via a text-to-speech engine, ensuring clarity and engagement.
-"""
-            + f"\nCurrent date and time: {current_date}"
-        )
+        self.system_prompt = load_config()["system_prompt"]
+        return self.system_prompt + f"\nCurrent date and time: {current_date}"
 
     def process_text_with_openai(self, text):
         """Process text with OpenAI's chat model, maintaining conversation history."""
@@ -54,6 +39,11 @@ class ChatAssistant:
             temperature=0.7,
             tool_choice="auto",
         )
+        log.debug(
+            "Prompt History: %s",
+            [{"role": "system", "content": self.get_system_prompt()}]
+            + self.conversation_history,
+        )
 
         response_message = response.choices[0].message
         tool_calls: List[ChatCompletionMessageToolCall] | None = (
@@ -63,12 +53,15 @@ class ChatAssistant:
         if tool_calls:
             # Append the tool response to the conversation history
             self.conversation_history.append(response_message)
-            return self.handle_function_calls(tool_calls, response_message)
+            answer = self.handle_function_calls(tool_calls, response_message)
+            json.dump(self.conversation_history, open("logs/history.log", "w"))
+            return answer
         else:
             self.conversation_history.append(
                 {"role": "assistant", "content": response_message.content}
             )
             log.info("Response: %s", response_message.content)
+            json.dump(self.conversation_history, open("logs/history.log", "w"))
             return response_message.content
 
     def handle_function_calls(

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+
+{% include "components/head.html" %}
+
+<body class="flex flex-col max-h-screen">
+    {% include "components/nav.html" %}
+    <main class="md:px-10 px-2 py-2 flex-1 overflow-hidden">
+        <h2 class="mb-2">Update Settings</h2>
+        <form hx-post="/api/v1/config?html=true" hx-target="#info-container" hx-swap="innerHTML"
+            class="flex flex-col space-y-2">
+            <div class="flex flex-col">
+                <label for="system_prompt">System Prompt</label>
+                <textarea id="system_prompt" name="system_prompt" rows="20"
+                    class="p-2 border border-gray-300 rounded">{{ system_prompt }}</textarea>
+            </div>
+
+            <div class="flex flex-col">
+                <label for="silence_threshold">Silence Threshold</label>
+                <input type="number" name="silence_threshold" placeholder="Silence Threshold"
+                    value="{{ silence_threshold}}" required class="p-2 border border-gray-300 rounded">
+            </div>
+
+            <div class="flex flex-col">
+                <label for="silence_duration">Silence Duration</label>
+                <input type="number" name="silence_duration" placeholder="Silence Duration"
+                    value="{{ silence_duration}}" required class="p-2 border border-gray-300 rounded">
+            </div>
+
+            <button type="submit" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-700">
+                Update
+            </button>
+        </form>
+        <div id="info-container" class="mt-4 p-2 bg-gray-100 border border-gray-300 rounded">
+        </div>
+    </main>
+</body>
+
+</html>

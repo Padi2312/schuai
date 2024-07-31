@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+
+{% include "components/head.html" %}
+
+<body class="flex flex-col max-h-screen">
+    {% include "components/nav.html" %}
+    <main class="px-10 py-2 flex-1 overflow-hidden" style="max-height: calc(100vh - 8rem);">
+        <h2 class="mb-2">Logs</h2>
+        <div id="logs" class="overflow-auto h-full">
+            <ul class="list-disc pl-4">
+                {% for log in logs %}
+                <li>{{ log }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </main>
+</body>
+
+</html>
