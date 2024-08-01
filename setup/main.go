@@ -195,7 +195,7 @@ func main() {
 
 	if !debug {
 		if err := activateAccessPoint("wlan0", "setup-pi", "setup-pi"); err != nil {
-			log.Fatalf("Failed to activate access point: %v", err)
+			log.Printf("Failed to activate access point: %v", err)
 		}
 	}
 
@@ -223,7 +223,20 @@ func connectExistingHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println("Successfully connected to existing WiFi network with SSID:", creds.SSID)
 		if checkInternetConnection() {
 			log.Println("Internet connection verified. Exiting...")
+			schuppenAiServiceCmd := exec.Command("sudo", "systemctl", "restart", "schuppen-ai.service")
+			if err := runCommand(schuppenAiServiceCmd); err != nil {
+				log.Println("Failed to restart schuppen-ai.service:", err)
+			}
 			os.Exit(0)
+		} else {
+			if err := activateAccessPoint("wlan0", "setup-pi", "setup-pi"); err != nil {
+				log.Printf("Failed to activate access point: %v", err)
+			}
+		}
+	} else {
+		log.Println("Failed to connect to existing WiFi network with SSID:", creds.SSID)
+		if err := activateAccessPoint("wlan0", "setup-pi", "setup-pi"); err != nil {
+			log.Printf("Failed to activate access point: %v", err)
 		}
 	}
 
@@ -250,9 +263,8 @@ func submitHandler(w http.ResponseWriter, r *http.Request) {
 
 	if !success {
 		log.Println("Failed to connect to WiFi network with SSID:", creds.SSID)
-		log.Println("Starting access point again...")
 		if err := activateAccessPoint("wlan0", "setup-pi", "setup-pi"); err != nil {
-			log.Fatalf("Failed to activate access point: %v", err)
+			log.Printf("Failed to activate access point: %v", err)
 		}
 		return
 	}
@@ -260,7 +272,7 @@ func submitHandler(w http.ResponseWriter, r *http.Request) {
 	if !checkInternetConnection() {
 		log.Println("Failed to verify internet connection. Starting access point again...")
 		if err := activateAccessPoint("wlan0", "setup-pi", "setup-pi"); err != nil {
-			log.Fatalf("Failed to activate access point: %v", err)
+			log.Printf("Failed to activate access point: %v", err)
 		}
 		return
 	}
@@ -342,22 +354,35 @@ network={
 }
 
 func restartWpaSupplicant() error {
-	restartCmd := exec.Command("sudo", "systemctl", "restart", "wpa_supplicant")
 	disconnectHotspotCmd := exec.Command("sudo", "nmcli", "connection", "down", "Hotspot")
+	restartCmd := exec.Command("sudo", "systemctl", "restart", "wpa_supplicant")
 
-	if err := runCommand(restartCmd); err != nil {
-		return fmt.Errorf("failed to restart wpa_supplicant: %v", err)
+	var err error
+	if isHotspotActive() {
+		runCommand(disconnectHotspotCmd)
 	}
+	err = runCommand(restartCmd)
 
-	if err := runCommand(disconnectHotspotCmd); err != nil {
-		return fmt.Errorf("failed to disconnect hotspot: %v", err)
+	if err != nil {
+		return fmt.Errorf("failed to restart wpa_supplicant: %v", err)
 	}
 
 	log.Println("wpa_supplicant restarted successfully")
 	return nil
 }
 
+func isHotspotActive() bool {
+	cmd := exec.Command("bash", "-c", "nmcli -t -f TYPE,NAME,STATE c show | grep '^802-11-wireless:' | grep -i 'Hotspot' | grep ':activated$'")
+	output, err := cmd.Output()
+	if err != nil {
+		log.Printf("Error checking hotspot status: %v", err)
+		return false
+	}
+	return len(output) > 0
+}
+
 func activateAccessPoint(device, ssid, password string) error {
+	log.Printf("Activating access point with SSID: %s", ssid)
 	activateCmd := exec.Command("sudo", "nmcli", "d", "wifi", "hotspot", "ifname", device, "ssid", ssid, "password", password)
 	if err := runCommand(activateCmd); err != nil {
 		return fmt.Errorf("failed to activate access point: %v", err)
@@ -376,11 +401,6 @@ func checkWiFiConnection() bool {
 func retryConnection(maxRetries int) bool {
 	for i := 0; i < maxRetries; i++ {
 		log.Printf("Attempting to connect (attempt %d/%d)...", i+1, maxRetries)
-		if err := restartWpaSupplicant(); err != nil {
-			log.Printf("Failed to restart wpa_supplicant: %v", err)
-			continue
-		}
-
 		if checkWiFiConnection() {
 			return true
 		}
