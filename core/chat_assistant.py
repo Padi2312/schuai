@@ -54,14 +54,14 @@ class ChatAssistant:
             # Append the tool response to the conversation history
             self.conversation_history.append(response_message)
             answer = self.handle_function_calls(tool_calls, response_message)
-            json.dump(self.conversation_history, open("logs/history.log", "w"))
+            # json.dump(self.conversation_history, open("logs/history.log", "w"))
             return answer
         else:
             self.conversation_history.append(
                 {"role": "assistant", "content": response_message.content}
             )
             log.info("Response: %s", response_message.content)
-            json.dump(self.conversation_history, open("logs/history.log", "w"))
+            # json.dump(self.conversation_history, open("logs/history.log", "w"))
             return response_message.content
 
     def handle_function_calls(

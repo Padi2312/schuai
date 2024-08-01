@@ -87,7 +87,7 @@ class Tools:
             },
         ]
 
-    def websearch(self, params: WebSearchParams, max_results=3):
+    def websearch(self, params: WebSearchParams, max_results=5):
         """
         Search the internet for the given keywords.
 
@@ -114,14 +114,14 @@ class Tools:
         for result in results:
             try:
                 log.debug(f"Checking URL: {result['href']}")
-                response = requests.head(result["href"])
+                response = requests.get(result["href"])
                 if response.status_code != 200:
                     log.warning(
                         f"Skipping {result['href']} - Received status code: {response.status_code}"
                     )
                     continue
 
-                article = self.goose.extract(url=result["href"])
+                article = self.goose.extract(raw_html=response.text)
                 scraped_content.append(
                     {
                         "title": article.title,
