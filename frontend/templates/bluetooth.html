@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+
+{% include "components/head.html" %}
+
+<body class="flex flex-col max-h-screen">
+    {% include "components/nav.html" %}
+    <div class="px-10 py-2 flex-1 overflow-hidden" role="main">
+        <h2 class="mb-2">Bluetooth Devices</h2>
+
+        <div id="deviceList" class="mb-4">
+            {% for device in devices %}
+            <div class="mb-2">
+                <span>{{ device.name }} ({{ device.mac }})</span>
+                <button onclick="connectDevice('{{ device.mac }}')"
+                    class="ml-2 bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded">
+                    Connect
+                </button>
+                <button onclick="disconnectDevice('{{ device.mac }}')"
+                    class="ml-2 bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">
+                    Disconnect
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+
+        <button onclick="location.reload()"
+            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Refresh Devices
+        </button>
+
+        <script>
+            function connectDevice(mac) {
+                fetch(`/api/v1/bluetooth/connect/${mac}`, { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.message);
+                        location.reload();
+                    })
+                    .catch(error => console.error('Error:', error));
+            }
+
+            function disconnectDevice(mac) {
+                fetch(`/api/v1/bluetooth/disconnect/${mac}`, { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.message);
+                        location.reload();
+                    })
+                    .catch(error => console.error('Error:', error));
+            }
+        </script>
+    </div>
+</body>
+
+</html>

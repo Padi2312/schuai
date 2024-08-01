@@ -1,10 +1,11 @@
 import json
 import os
+import subprocess
 
 from fastapi.responses import HTMLResponse
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -68,6 +69,22 @@ async def history(request: Request):
     return templates.TemplateResponse(
         "history.html", {"request": request, "history": history}
     )
+
+
+@app.get("/bluetooth", response_class=HTMLResponse)
+async def bluetooth(request: Request):
+    try:
+        output = subprocess.check_output(["bluetoothctl", "devices"]).decode("utf-8")
+        devices = []
+        for line in output.split("\n"):
+            if line.strip():
+                _, mac, name = line.split(" ", 2)
+                devices.append({"mac": mac, "name": name})
+        return templates.TemplateResponse(
+            "bluetooth.html", {"request": request, "devices": devices}
+        )
+    except subprocess.CalledProcessError:
+        raise HTTPException(status_code=500, detail="Failed to get Bluetooth devices")
 
 
 def start_server():
